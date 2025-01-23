@@ -1,0 +1,109 @@
+real R=4; //domaine [-R;R]x[0;1]
+real rho=2; //coefficient physique du defaut
+border a(t=-R,R){x =t; y = 0; label = 1;}
+border b(t=0,1){x =R; y = t; label = 2; }//reference 2 sur le bord droit
+border c(t=-R,R){x =-t; y = 1; label = 1;}
+border d(t=0,1){x =-R; y = 1-t; label = 3;} //reference 3 sur le bord gauche
+border Defaut(t=0,2*pi){ x=0.3*cos(t); y=0.5+0.3*sin(t); label = 1; }//MODIFIER ICI
+mesh ThDefaut=buildmesh(Defaut(50));
+mesh ThSansDefaut=buildmesh(a(200)+b(20)+c(200)+d(20)+Defaut(-50));
+mesh Th = ThDefaut+ThSansDefaut;
+plot(Th,wait=1,cmm="Appuyer sur Enter pour poursuivre");
+fespace Vh(Th,P2); // espace elements finis
+real w=0.8*pi; // frequence de travail
+func uifonc=exp(1i*w*x);
+
+// DEBUT DE LA PARTIE A NE PAS MODIFIER
+/*****************************************
+Construction des Dirichlet-to-Neumann
+******************************************/
+int nbfpro = 15; //troncature dans le Dirichlet-to-Neumann
+//fonction de la base de fourier
+func complex expin(real x1,real x2, int n)
+{
+if (n==0)
+return 1.;
+else
+return (sqrt(2.)*cos(n*pi*x2));
+}
+
+/******************************************************
+Dirichlet-to-Neumann à gauche
+/*****************************************************/
+complex[int,int] vDtNG( Vh.ndof, nbfpro);
+matrix<complex> DtNG;
+for (int n=0;n<nbfpro;n++)
+{
+func f= expin(x,y,n);
+varf FiniFourier(u,v) = int1d(Th,3)(v*f);
+complex[int] temp = FiniFourier(0,Vh);
+vDtNG(:,n)=temp;
+}
+DtNG=vDtNG;
+// Construction de la matrice diagonale pour construire les EFL
+matrix<complex> DG;
+complex[int] diagofDG(nbfpro);
+for (int n =0;n<nbfpro;n++)
+{
+if (n==0)
+diagofDG[n] = -1i*w; // moins car dans la formu. varia., il y a un moins
+else
+diagofDG[n] = sqrt((n*pi)^2-w^2); // moins car dans la formu. varia., il y a un moins
+}
+DG = [diagofDG];
+// Assemblage final et réorganisation pour intégration dans la formulation variationnelle
+matrix<complex> EFLG ;
+EFLG = DtNG*DG;
+EFLG= EFLG*DtNG';
+
+/******************************************************
+Dirichlet-to-Neumann à droite
+/*****************************************************/
+complex[int,int] vDtND( Vh.ndof, nbfpro);
+matrix<complex> DtND;
+for (int n=0;n<nbfpro;n++)
+{
+func f= expin(x,y,n);
+varf FiniFourier(u,v) = int1d(Th,2)(v*f); // integration sur le bord droit
+complex[int] temp = FiniFourier(0,Vh);
+vDtND(:,n)=temp;
+}
+DtND=vDtND;
+matrix<complex> DD;
+complex[int] diagofDD(nbfpro);
+for (int n =0;n<nbfpro;n++)
+{
+if (n==0)
+diagofDD[n] = -1i*w;
+else
+diagofDD[n] = sqrt((n*pi)^2-w^2);
+}
+DD = [diagofDD];
+matrix<complex> EFLD ;
+EFLD = DtND*DD;
+EFLD= EFLD*DtND';
+
+// FIN DE LA PARTIE A NE PAS MODIFIER
+/***************************************
+On passe à la formulation variationnelle
+****************************************/
+
+Vh<complex> us,u,v,ui=uifonc;
+matrix<complex> A,B;
+complex[int] F(Vh.ndof);
+
+varf aForme(us,v)=//MODIFIER ICI
+      int2d(Th)(dx(us)*dx(v) +dy(us)*dy(v) - w^2*rho*us*v); 
+
+//Attention, le terme en grad grad doit être précédé d’un signe +
+//pour que ce soit cohérent avec le signe des Dirichlet-to-Neumann
+
+varf lForme(us,v)=int2d(ThDefaut)( (rho-1)*w^2*uifonc*v );
+
+A= aForme(Vh,Vh);
+B= A+EFLD+EFLG; //on rajoute les Dirichlet-to-Neumann
+set(B,solver=UMFPACK);
+F= lForme(0,Vh);
+us[]=B^-1*F;
+Vh uReel=real(us+ui);
+plot(uReel,fill=1,dim=2,nbiso=40, value=10,wait=1,cmm="Re u");
