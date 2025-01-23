@@ -1,12 +1,13 @@
 real R=4; //domaine [-R;R]x[0;1]
-real rho=2; //coefficient physique du defaut
+real rho=3; //coefficient physique du defaut
+int den=20; // la densité du mesh
 border a(t=-R,R){x =t; y = 0; label = 1;}
 border b(t=0,1){x =R; y = t; label = 2; }//reference 2 sur le bord droit
 border c(t=-R,R){x =-t; y = 1; label = 1;}
 border d(t=0,1){x =-R; y = 1-t; label = 3;} //reference 3 sur le bord gauche
-border Defaut(t=0,2*pi){ x=0.3*cos(t); y=0.5+0.3*sin(t); label = 1; }//MODIFIER ICI
-mesh ThDefaut=buildmesh(Defaut(50));
-mesh ThSansDefaut=buildmesh(a(200)+b(20)+c(200)+d(20)+Defaut(-50));
+border Defaut(t=0,2*pi){ x=cos(t)*0.3+cos(4*t)*0.05; y=0.5+sin(t)*0.3+sin(4*t)*0.05; label = 1; }//MODIFIER ICI
+mesh ThDefaut=buildmesh(Defaut(2*den));
+mesh ThSansDefaut=buildmesh(a(2*R*den)+b(den)+c(2*R*den)+d(den)+Defaut(-2*den));
 mesh Th = ThDefaut+ThSansDefaut;
 plot(Th,wait=1,cmm="Appuyer sur Enter pour poursuivre");
 fespace Vh(Th,P2); // espace elements finis
@@ -106,4 +107,6 @@ set(B,solver=UMFPACK);
 F= lForme(0,Vh);
 us[]=B^-1*F;
 Vh uReel=real(us+ui);
+//refl=int2d(Th)((rho-1)*(us+uifonc)*uifonc*w*0.5)
+//cout << "R= " << refl << endl;
 plot(uReel,fill=1,dim=2,nbiso=40, value=10,wait=1,cmm="Re u");
