@@ -1,6 +1,5 @@
-\\pour executer, utilisez
-\\FreeFem++ path/Project-of-APM_42031_EP---Analyse-variationnelle-des-quations-aux-d-riv-es-partielles-2024-2025/solution.edp
-
+//pour executer, utilisez
+//FreeFem++ path/Project-of-APM_42031_EP---Analyse-variationnelle-des-quations-aux-d-riv-es-partielles-2024-2025/solution.edp
 real R=4; //domaine [-R;R]x[0;1]
 real rho=3; //coefficient physique du defaut
 int den=20; // la densité du mesh
